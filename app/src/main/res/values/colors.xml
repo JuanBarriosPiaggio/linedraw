@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Vivid Void palette -->
+    <color name="void_background">#0C0E12</color>
+    <color name="void_surface">#15181D</color>
+    <color name="accent_cyan">#33E8FF</color>
+    <color name="star_gold">#FFC24B</color>
+    <color name="text_primary">#F4F6F8</color>
+    <color name="text_secondary">#8A9099</color>
+    <color name="ic_launcher_background">#0C0E12</color>
+</resources>
