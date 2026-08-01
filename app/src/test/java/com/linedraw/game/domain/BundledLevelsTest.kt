@@ -31,12 +31,51 @@ class BundledLevelsTest {
     }
 
     @Test
-    fun `difficulty tiers ramp from 3x3 to 6x6`() {
+    fun `difficulty ramps quickly after the 5-level tutorial`() {
         val levels = loadLevels().levels
-        assertTrue(levels.filter { it.id <= 15 }.all { it.gridSize == 3 })
-        assertTrue(levels.filter { it.id in 16..30 }.all { it.gridSize == 4 })
-        assertTrue(levels.filter { it.id in 31..45 }.all { it.gridSize == 5 })
-        assertTrue(levels.filter { it.id in 46..60 }.all { it.gridSize == 6 })
+        assertTrue("Levels 1-5 are the 3x3 tutorial", levels.filter { it.id <= 5 }.all { it.gridSize == 3 })
+        assertTrue(levels.filter { it.id in 6..14 }.all { it.gridSize == 4 })
+        assertTrue(levels.filter { it.id in 15..26 }.all { it.gridSize == 5 })
+        assertTrue(levels.filter { it.id >= 27 }.all { it.gridSize == 6 })
+        // Grid size never shrinks as levels progress.
+        assertEquals(levels.map { it.gridSize }, levels.map { it.gridSize }.sorted())
+    }
+
+    @Test
+    fun `no level is a rotation or reflection of another`() {
+        val seen = mutableMapOf<String, Int>()
+        for (level in loadLevels().levels) {
+            val canonical = canonicalForm(level.gridSize, level.edges)
+            val clash = seen.put(canonical, level.id)
+            assertTrue("Level ${level.id} duplicates level $clash up to symmetry", clash == null)
+        }
+    }
+
+    /** Mirrors tools/LevelGen.java: minimal edge-set fingerprint over the 8 square symmetries. */
+    private fun canonicalForm(gridSize: Int, edges: List<List<Int>>): String {
+        fun transformDot(dot: Int, t: Int): Int {
+            val m = gridSize - 1
+            val x = dot % gridSize
+            val y = dot / gridSize
+            var (nx, ny) = when (t % 4) {
+                1 -> (m - y) to x
+                2 -> (m - x) to (m - y)
+                3 -> y to (m - x)
+                else -> x to y
+            }
+            if (t >= 4) nx = m - nx
+            return ny * gridSize + nx
+        }
+        return (0 until 8).minOf { t ->
+            edges
+                .map { (a, b) ->
+                    val ta = transformDot(a, t)
+                    val tb = transformDot(b, t)
+                    "${minOf(ta, tb)}-${maxOf(ta, tb)}"
+                }
+                .sorted()
+                .joinToString(",", prefix = "$gridSize|")
+        }
     }
 
     @Test

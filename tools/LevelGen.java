@@ -37,24 +37,17 @@ public class LevelGen {
         StringBuilder json = new StringBuilder();
         json.append("{\n  \"levels\": [\n");
 
-        int id = 1;
-        int[][] tiers = {
-            // gridSize, count, minExtraEdges, maxExtraEdges
-            {3, 15, 2, 3},
-            {4, 15, 3, 5},
-            {5, 15, 4, 6},
-            {6, 15, 5, 8},
-        };
-
-        for (int[] tier : tiers) {
-            int gridSize = tier[0];
-            for (int i = 0; i < tier[1]; i++) {
-                Level level = generateLevel(id, gridSize, tier[2], tier[3]);
-                json.append(level.toJson());
-                if (id < 60) json.append(",");
-                json.append("\n");
-                id++;
-            }
+        Set<String> seenCanonical = new HashSet<>();
+        for (int id = 1; id <= 60; id++) {
+            LevelSpec spec = specFor(id);
+            Level level = generateLevel(id, spec, seenCanonical);
+            System.out.printf(
+                "Level %2d: %dx%d, %2d edges, solvable from %d/%d starts%n",
+                id, spec.gridSize, spec.gridSize, level.edges.size(),
+                level.solvableStarts, spec.gridSize * spec.gridSize);
+            json.append(level.toJson());
+            if (id < 60) json.append(",");
+            json.append("\n");
         }
         json.append("  ]\n}\n");
 
@@ -67,6 +60,44 @@ public class LevelGen {
         System.out.println("Wrote sound effects to " + raw);
     }
 
+    // ── Difficulty curve ─────────────────────────────────────────
+
+    static class LevelSpec {
+        int gridSize;
+        int extraMin, extraMax;
+        /** Accepted range for the number of dots the level can be solved from. */
+        int minStarts, maxStarts;
+
+        LevelSpec(int gridSize, int extraMin, int extraMax, int minStarts, int maxStarts) {
+            this.gridSize = gridSize;
+            this.extraMin = extraMin;
+            this.extraMax = extraMax;
+            this.minStarts = minStarts;
+            this.maxStarts = maxStarts;
+        }
+    }
+
+    /**
+     * Per-level difficulty targets.
+     *
+     * Levels 1-5 are a forgiving 3x3 tutorial (solvable from many starts).
+     * From level 6 the grid grows quickly and — the real difficulty lever —
+     * the number of starting dots that can complete the puzzle is pushed
+     * steadily down, so late levels require hunting for one of only 2-3
+     * viable starting dots and route-planning around decoy edges.
+     */
+    static LevelSpec specFor(int id) {
+        if (id <= 3)  return new LevelSpec(3, 2, 3, 5, 9);   // teach the mechanic
+        if (id <= 5)  return new LevelSpec(3, 3, 4, 3, 6);   // first gentle bite
+        if (id <= 9)  return new LevelSpec(4, 4, 6, 4, 8);   // bigger board
+        if (id <= 14) return new LevelSpec(4, 6, 8, 2, 4);   // start-dot hunting begins
+        if (id <= 20) return new LevelSpec(5, 6, 9, 3, 6);
+        if (id <= 26) return new LevelSpec(5, 8, 11, 1, 3);
+        if (id <= 34) return new LevelSpec(6, 8, 11, 3, 6);
+        if (id <= 44) return new LevelSpec(6, 10, 13, 2, 4);
+        return new LevelSpec(6, 11, 14, 1, 2);               // endgame: 1-2 viable starts
+    }
+
     // ── Level generation ─────────────────────────────────────────
 
     static class Level {
@@ -74,6 +105,7 @@ public class LevelGen {
         int gridSize;
         List<int[]> edges = new ArrayList<>(); // pairs of dot ids
         List<Integer> solution;
+        int solvableStarts; // metric only, not serialized
 
         String toJson() {
             StringBuilder sb = new StringBuilder();
@@ -102,8 +134,17 @@ public class LevelGen {
         }
     }
 
-    static Level generateLevel(int id, int gridSize, int minExtra, int maxExtra) {
+    static Level generateLevel(int id, LevelSpec spec, Set<String> seenCanonical) {
+        int gridSize = spec.gridSize;
+        int attempts = 0;
         while (true) {
+            attempts++;
+            // If the difficulty window is too tight to satisfy, gradually widen it
+            // so generation always terminates.
+            int relax = attempts / 400;
+            int minStarts = Math.max(1, spec.minStarts - relax);
+            int maxStarts = Math.min(gridSize * gridSize, spec.maxStarts + relax);
+
             List<Integer> path = randomHamiltonianPath(gridSize);
             if (path == null) continue;
 
@@ -114,7 +155,7 @@ public class LevelGen {
             }
 
             // Extra decoy edges between orthogonally adjacent dots.
-            int extra = minExtra + RNG.nextInt(maxExtra - minExtra + 1);
+            int extra = spec.extraMin + RNG.nextInt(spec.extraMax - spec.extraMin + 1);
             List<int[]> candidates = new ArrayList<>();
             int n = gridSize * gridSize;
             for (int a = 0; a < n; a++) {
@@ -128,6 +169,7 @@ public class LevelGen {
                 if (added >= extra) break;
                 if (addEdge(edges, edgeSet, c[0], c[1])) added++;
             }
+            if (edges.size() > 63) continue; // solver bitmask capacity
 
             Level level = new Level();
             level.id = id;
@@ -135,9 +177,85 @@ public class LevelGen {
             level.edges = edges;
             level.solution = path;
 
+            // Difficulty gate: how many starting dots can complete the puzzle.
+            int starts = countSolvableStarts(level, maxStarts);
+            if (starts < minStarts || starts > maxStarts) continue;
+            level.solvableStarts = starts;
+
+            // Uniqueness gate: reject rotations/reflections of any earlier level.
+            String canonical = canonicalForm(level);
+            if (!seenCanonical.add(canonical)) continue;
+
             // Independent re-verification (defense in depth against generator bugs).
             if (verifySolvable(level)) return level;
+            seenCanonical.remove(canonical);
         }
+    }
+
+    /**
+     * Counts starting dots from which the puzzle can be completed. Stops early
+     * once the count exceeds [cap] (the level will be rejected anyway).
+     */
+    static int countSolvableStarts(Level level, int cap) {
+        int n = level.gridSize * level.gridSize;
+        List<List<int[]>> adj = buildAdjacency(level, n);
+        long full = (1L << n) - 1;
+        int count = 0;
+        for (int start = 0; start < n; start++) {
+            long[] budget = {150_000};
+            if (solverDfs(adj, start, 0L, 1L << start, full, budget)) {
+                count++;
+                if (count > cap) return count;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Canonical fingerprint of the level's edge set under the 8 symmetries of
+     * the square (rotations + reflections). Two levels that are the same puzzle
+     * "from a different perspective" share a canonical form.
+     */
+    static String canonicalForm(Level level) {
+        int g = level.gridSize;
+        String best = null;
+        for (int t = 0; t < 8; t++) {
+            List<String> transformed = new ArrayList<>();
+            for (int[] edge : level.edges) {
+                int a = transformDot(edge[0], g, t);
+                int b = transformDot(edge[1], g, t);
+                transformed.add(Math.min(a, b) + "-" + Math.max(a, b));
+            }
+            Collections.sort(transformed);
+            String key = g + "|" + String.join(",", transformed);
+            if (best == null || key.compareTo(best) < 0) best = key;
+        }
+        return best;
+    }
+
+    /** Applies one of the 8 dihedral transforms to a dot id on a g x g grid. */
+    static int transformDot(int dot, int g, int transform) {
+        int x = dot % g, y = dot / g, m = g - 1;
+        int nx, ny;
+        switch (transform % 4) {
+            case 1 -> { nx = m - y; ny = x; }       // 90°
+            case 2 -> { nx = m - x; ny = m - y; }   // 180°
+            case 3 -> { nx = y; ny = m - x; }       // 270°
+            default -> { nx = x; ny = y; }
+        }
+        if (transform >= 4) nx = m - nx;            // mirror
+        return ny * g + nx;
+    }
+
+    static List<List<int[]>> buildAdjacency(Level level, int n) {
+        List<List<int[]>> adj = new ArrayList<>();
+        for (int i = 0; i < n; i++) adj.add(new ArrayList<>());
+        for (int i = 0; i < level.edges.size(); i++) {
+            int[] edge = level.edges.get(i);
+            adj.get(edge[0]).add(new int[]{i, edge[1]});
+            adj.get(edge[1]).add(new int[]{i, edge[0]});
+        }
+        return adj;
     }
 
     static boolean addEdge(List<int[]> edges, Set<Long> set, int a, int b) {
@@ -192,15 +310,8 @@ public class LevelGen {
      */
     static boolean verifySolvable(Level level) {
         int n = level.gridSize * level.gridSize;
-        int e = level.edges.size();
-        if (e > 63) return false; // bitmask capacity guard
-        List<List<int[]>> adj = new ArrayList<>();
-        for (int i = 0; i < n; i++) adj.add(new ArrayList<>());
-        for (int i = 0; i < e; i++) {
-            int[] edge = level.edges.get(i);
-            adj.get(edge[0]).add(new int[]{i, edge[1]});
-            adj.get(edge[1]).add(new int[]{i, edge[0]});
-        }
+        if (level.edges.size() > 63) return false; // bitmask capacity guard
+        List<List<int[]>> adj = buildAdjacency(level, n);
         long full = (1L << n) - 1;
         for (int start = 0; start < n; start++) {
             long[] budget = {400_000};
