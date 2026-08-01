@@ -14,14 +14,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -51,6 +56,7 @@ fun SettingsScreen(
     val billingAvailable by app.billingManager.billingAvailable.collectAsState()
     val scope = rememberCoroutineScope()
     val activity = LocalContext.current as Activity
+    var showResetDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -143,6 +149,14 @@ fun SettingsScreen(
             }
         }
 
+        Spacer(Modifier.height(28.dp))
+
+        SecondaryButton(
+            text = "Reset all progress",
+            onClick = { showResetDialog = true },
+            modifier = Modifier.fillMaxWidth(),
+        )
+
         Spacer(Modifier.weight(1f))
 
         Text(
@@ -153,6 +167,39 @@ fun SettingsScreen(
                 .fillMaxWidth()
                 .padding(bottom = 16.dp),
             textAlign = TextAlign.Center,
+        )
+    }
+
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            containerColor = VoidSurface,
+            title = {
+                Text("Reset all progress?", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+            },
+            text = {
+                Text(
+                    "All level unlocks and stars will be wiped and you'll start again from level 1. " +
+                        "Your settings and Remove Ads purchase are kept. This cannot be undone.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showResetDialog = false
+                        scope.launch { app.progressRepository.resetAllProgress() }
+                    },
+                ) {
+                    Text("Reset", color = StarGold, style = MaterialTheme.typography.labelLarge)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) {
+                    Text("Cancel", color = TextSecondary, style = MaterialTheme.typography.labelLarge)
+                }
+            },
         )
     }
 }

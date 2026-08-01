@@ -99,4 +99,20 @@ class ProgressRepository(private val context: Context) {
     }
 
     suspend fun currentSettings(): Settings = settings.first()
+
+    /**
+     * Wipes all gameplay progress (unlocks, stars, ad counters) while keeping
+     * user preferences and the Remove Ads purchase intact.
+     */
+    suspend fun resetAllProgress() {
+        context.dataStore.edit { prefs ->
+            val keep = mapOf<Preferences.Key<Boolean>, Boolean?>(
+                Keys.SOUND to prefs[Keys.SOUND],
+                Keys.HAPTICS to prefs[Keys.HAPTICS],
+                Keys.ADS_REMOVED to prefs[Keys.ADS_REMOVED],
+            )
+            prefs.clear()
+            keep.forEach { (key, value) -> if (value != null) prefs[key] = value }
+        }
+    }
 }
