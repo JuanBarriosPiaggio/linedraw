@@ -167,14 +167,25 @@ class GameViewModel(private val app: LineDrawApp) : ViewModel() {
         val level = state.level ?: return
         val g = graph ?: return
         viewModelScope.launch {
+            // Nothing drawn yet (at most a start dot placed): not every dot is a
+            // valid starting point, so guide the player to the known solution's
+            // opening edge instead of searching from a possibly-wrong start.
+            if (state.usedEdges.isEmpty()) {
+                val s = level.solution
+                val hint = if (s.size >= 2) s[0] to s[1] else null
+                _uiState.value = state.copy(
+                    path = emptyList(),
+                    status = GameStatus.Playing,
+                    hintEdge = hint,
+                    hintUnavailable = hint == null,
+                    usedHint = state.usedHint || hint != null,
+                )
+                return@launch
+            }
+
             val hint: Pair<Int, Int>? = withContext(Dispatchers.Default) {
-                if (state.path.isEmpty()) {
-                    val s = level.solution
-                    if (s.size >= 2) s[0] to s[1] else null
-                } else {
-                    PathSolver.nextHint(g, level, state.path, state.usedEdges)
-                        ?.let { next -> state.path.last() to next }
-                }
+                PathSolver.nextHint(g, level, state.path, state.usedEdges)
+                    ?.let { next -> state.path.last() to next }
             }
             _uiState.value = _uiState.value.copy(
                 hintEdge = hint,

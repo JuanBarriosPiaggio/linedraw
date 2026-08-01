@@ -144,7 +144,18 @@ fun GameplayScreen(
 
             if (state.hintUnavailable) {
                 Text(
-                    "No path to a solve from here — try Undo",
+                    "Can't finish from this position — Undo or Reset",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = StarGold,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    textAlign = TextAlign.Center,
+                )
+            }
+            if (state.hintEdge != null && state.path.isEmpty()) {
+                Text(
+                    "Start on the glowing edge",
                     style = MaterialTheme.typography.bodySmall,
                     color = StarGold,
                     modifier = Modifier
