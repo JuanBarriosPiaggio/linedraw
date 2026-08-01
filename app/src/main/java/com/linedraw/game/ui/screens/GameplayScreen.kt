@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -110,11 +109,11 @@ fun GameplayScreen(
                     interactive = state.status == GameStatus.Playing || state.status == GameStatus.Stuck,
                     onStart = viewModel::startAt,
                     onMove = viewModel::tryMoveTo,
+                    // The canvas centers a square grid within whatever space it
+                    // gets, so it can safely fill the remaining screen area.
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .aspectRatio(1f, matchHeightConstraintsFirst = true)
-                        .align(Alignment.CenterHorizontally)
                         .padding(8.dp),
                 )
             }
