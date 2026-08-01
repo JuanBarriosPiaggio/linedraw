@@ -32,13 +32,26 @@ class BundledLevelsTest {
 
     @Test
     fun `difficulty ramps quickly after the 5-level tutorial`() {
-        val levels = loadLevels().levels
+        // Named shape levels (Star, Fish, ...) sit outside the square-grid curve.
+        val levels = loadLevels().levels.filter { it.name == null }
         assertTrue("Levels 1-5 are the 3x3 tutorial", levels.filter { it.id <= 5 }.all { it.gridSize == 3 })
         assertTrue(levels.filter { it.id in 6..14 }.all { it.gridSize == 4 })
         assertTrue(levels.filter { it.id in 15..26 }.all { it.gridSize == 5 })
         assertTrue(levels.filter { it.id >= 27 }.all { it.gridSize == 6 })
         // Grid size never shrinks as levels progress.
         assertEquals(levels.map { it.gridSize }, levels.map { it.gridSize }.sorted())
+    }
+
+    @Test
+    fun `shape levels are present with geometric shapes before animals`() {
+        val shapes = loadLevels().levels.filter { it.name != null }.associate { it.id to it.name }
+        assertEquals(
+            mapOf(
+                8 to "Star", 14 to "Octagon", 20 to "Diamond", 26 to "Rings",
+                34 to "Butterfly", 40 to "Fish", 48 to "Bird", 56 to "Cat",
+            ),
+            shapes,
+        )
     }
 
     @Test

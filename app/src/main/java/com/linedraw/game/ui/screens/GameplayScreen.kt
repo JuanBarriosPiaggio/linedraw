@@ -86,7 +86,11 @@ fun GameplayScreen(
                         .padding(8.dp),
                 )
                 Text(
-                    if (level != null) "Level ${level.id}" else "",
+                    when {
+                        level == null -> ""
+                        level.name != null -> "Level ${level.id} · ${level.name}"
+                        else -> "Level ${level.id}"
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     color = TextPrimary,
                     modifier = Modifier.weight(1f),

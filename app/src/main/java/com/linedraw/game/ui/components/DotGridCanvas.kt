@@ -30,16 +30,42 @@ import com.linedraw.game.ui.theme.AccentCyan
 import com.linedraw.game.ui.theme.DotIdle
 import com.linedraw.game.ui.theme.StarGold
 
+/**
+ * Maps dot coordinates to canvas pixels by fitting the dots' bounding box into
+ * the available area (aspect-preserving, centered). Works for square lattices
+ * and free-form shape levels alike.
+ */
 private fun dotPositions(level: Level, size: IntSize): List<Offset> {
+    val minX = level.dots.minOf { it.x }
+    val maxX = level.dots.maxOf { it.x }
+    val minY = level.dots.minOf { it.y }
+    val maxY = level.dots.maxOf { it.y }
+    val spanX = (maxX - minX).coerceAtLeast(1).toFloat()
+    val spanY = (maxY - minY).coerceAtLeast(1).toFloat()
+
     val side = minOf(size.width, size.height).toFloat()
-    val pad = side * 0.11f
-    val cells = (level.gridSize - 1).coerceAtLeast(1)
-    val step = (side - 2 * pad) / cells
-    val offsetX = (size.width - side) / 2f
-    val offsetY = (size.height - side) / 2f
+    val usable = side - 2 * side * 0.11f
+    val scale = minOf(usable / spanX, usable / spanY)
+
+    val contentWidth = spanX * scale
+    val contentHeight = spanY * scale
+    val offsetX = (size.width - contentWidth) / 2f
+    val offsetY = (size.height - contentHeight) / 2f
     return level.dots.map { dot ->
-        Offset(offsetX + pad + dot.x * step, offsetY + pad + dot.y * step)
+        Offset(offsetX + (dot.x - minX) * scale, offsetY + (dot.y - minY) * scale)
     }
+}
+
+/** Touch snap radius derived from the closest pair of dots on screen. */
+private fun snapRadius(positions: List<Offset>): Float {
+    var minDistance = Float.MAX_VALUE
+    for (i in positions.indices) {
+        for (j in i + 1 until positions.size) {
+            val d = (positions[i] - positions[j]).getDistance()
+            if (d < minDistance) minDistance = d
+        }
+    }
+    return if (minDistance == Float.MAX_VALUE) 60f else minDistance * 0.42f
 }
 
 private fun nearestDot(positions: List<Offset>, point: Offset, radius: Float): Int? {
@@ -95,7 +121,7 @@ fun DotGridCanvas(
                 detectDragGestures(
                     onDragStart = { start ->
                         val positions = dotPositions(level, size)
-                        val radius = snapRadius(level, size)
+                        val radius = snapRadius(positions)
                         nearestDot(positions, start, radius)?.let { dot ->
                             if (path.isEmpty()) onStart(dot)
                         }
@@ -105,7 +131,7 @@ fun DotGridCanvas(
                         change.consume()
                         fingerPosition = change.position
                         val positions = dotPositions(level, size)
-                        val radius = snapRadius(level, size)
+                        val radius = snapRadius(positions)
                         nearestDot(positions, change.position, radius)?.let { dot ->
                             onMove(dot)
                         }
@@ -118,7 +144,7 @@ fun DotGridCanvas(
                 if (!interactive) return@pointerInput
                 detectTapGestures { tap ->
                     val positions = dotPositions(level, size)
-                    val radius = snapRadius(level, size)
+                    val radius = snapRadius(positions)
                     nearestDot(positions, tap, radius)?.let { dot ->
                         if (path.isEmpty()) onStart(dot) else onMove(dot)
                     }
@@ -220,11 +246,4 @@ fun DotGridCanvas(
             }
         }
     }
-}
-
-private fun snapRadius(level: Level, size: IntSize): Float {
-    val side = minOf(size.width, size.height).toFloat()
-    val cells = (level.gridSize - 1).coerceAtLeast(1)
-    val step = (side - 2 * side * 0.11f) / cells
-    return step * 0.38f
 }

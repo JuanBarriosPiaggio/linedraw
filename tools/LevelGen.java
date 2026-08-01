@@ -39,12 +39,20 @@ public class LevelGen {
 
         Set<String> seenCanonical = new HashSet<>();
         for (int id = 1; id <= 60; id++) {
-            LevelSpec spec = specFor(id);
-            Level level = generateLevel(id, spec, seenCanonical);
-            System.out.printf(
-                "Level %2d: %dx%d, %2d edges, solvable from %d/%d starts%n",
-                id, spec.gridSize, spec.gridSize, level.edges.size(),
-                level.solvableStarts, spec.gridSize * spec.gridSize);
+            Level level;
+            Shape shape = SHAPES.get(id);
+            if (shape != null) {
+                level = buildShapeLevel(id, shape);
+                System.out.printf("Level %2d: shape \"%s\", %d dots, %d edges%n",
+                    id, shape.name, level.dotsOverride.size(), level.edges.size());
+            } else {
+                LevelSpec spec = specFor(id);
+                level = generateLevel(id, spec, seenCanonical);
+                System.out.printf(
+                    "Level %2d: %dx%d, %2d edges, solvable from %d/%d starts%n",
+                    id, spec.gridSize, spec.gridSize, level.edges.size(),
+                    level.solvableStarts, spec.gridSize * spec.gridSize);
+            }
             json.append(level.toJson());
             if (id < 60) json.append(",");
             json.append("\n");
@@ -98,6 +106,105 @@ public class LevelGen {
         return new LevelSpec(6, 11, 14, 1, 2);               // endgame: 1-2 viable starts
     }
 
+    // ── Shape levels ─────────────────────────────────────────────
+
+    static class Shape {
+        String name;
+        int[][] dots;   // {x, y} per dot id, on a 0..12 virtual grid
+        int[][] edges;  // {dotA, dotB}
+
+        Shape(String name, int[][] dots, int[][] edges) {
+            this.name = name;
+            this.dots = dots;
+            this.edges = edges;
+        }
+    }
+
+    /**
+     * Hand-crafted shape levels woven into the progression: geometric forms
+     * mid-game, animals later. Each is validated and given a computed solution
+     * before shipping, exactly like procedural levels.
+     */
+    static final java.util.Map<Integer, Shape> SHAPES = java.util.Map.of(
+        8, new Shape("Star",
+            new int[][]{{6, 0}, {12, 4}, {10, 11}, {2, 11}, {0, 4}},
+            new int[][]{{0, 2}, {2, 4}, {4, 1}, {1, 3}, {3, 0}}),
+        14, new Shape("Octagon",
+            new int[][]{{6, 0}, {10, 2}, {12, 6}, {10, 10}, {6, 12}, {2, 10}, {0, 6}, {2, 2}, {6, 6}},
+            new int[][]{{0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 6}, {6, 7}, {7, 0},
+                        {8, 0}, {8, 2}, {8, 4}, {8, 6}}),
+        20, new Shape("Diamond",
+            new int[][]{{6, 0}, {12, 6}, {6, 12}, {0, 6}, {6, 3}, {9, 6}, {6, 9}, {3, 6}},
+            new int[][]{{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4},
+                        {0, 4}, {1, 5}, {2, 6}, {3, 7}}),
+        26, new Shape("Rings",
+            new int[][]{{6, 0}, {10, 2}, {12, 6}, {10, 10}, {6, 12}, {2, 10}, {0, 6}, {2, 2},
+                        {6, 3}, {8, 4}, {9, 6}, {8, 8}, {6, 9}, {4, 8}, {3, 6}, {4, 4}},
+            new int[][]{{0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 6}, {6, 7}, {7, 0},
+                        {8, 9}, {9, 10}, {10, 11}, {11, 12}, {12, 13}, {13, 14}, {14, 15}, {15, 8},
+                        {0, 8}, {2, 10}, {4, 12}, {6, 14}}),
+        34, new Shape("Butterfly",
+            new int[][]{{6, 3}, {6, 6}, {6, 9}, {2, 2}, {0, 6}, {2, 10}, {10, 2}, {12, 6}, {10, 10}},
+            new int[][]{{0, 1}, {1, 2}, {0, 3}, {3, 4}, {4, 5}, {5, 2}, {0, 6}, {6, 7}, {7, 8}, {8, 2}}),
+        40, new Shape("Fish",
+            new int[][]{{0, 6}, {3, 3}, {8, 3}, {10, 6}, {8, 9}, {3, 9}, {12, 4}, {12, 8}},
+            new int[][]{{0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 0}, {3, 6}, {6, 7}, {7, 3}}),
+        48, new Shape("Bird",
+            new int[][]{{0, 3}, {3, 5}, {6, 7}, {9, 5}, {12, 3}, {5, 10}, {7, 10}},
+            new int[][]{{0, 1}, {1, 2}, {2, 3}, {3, 4}, {2, 5}, {5, 6}, {6, 2}}),
+        56, new Shape("Cat",
+            new int[][]{{4, 2}, {8, 2}, {11, 5}, {11, 9}, {8, 12}, {4, 12}, {1, 9}, {1, 5}, {2, 0}, {10, 0}},
+            new int[][]{{0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 6}, {6, 7}, {7, 0},
+                        {0, 8}, {8, 7}, {1, 9}, {9, 2}})
+    );
+
+    static Level buildShapeLevel(int id, Shape shape) {
+        Level level = new Level();
+        level.id = id;
+        level.gridSize = 13; // fine virtual grid the shape coordinates live on
+        level.name = shape.name;
+        level.dotsOverride = new ArrayList<>();
+        for (int[] dot : shape.dots) level.dotsOverride.add(dot);
+        Set<Long> edgeSet = new HashSet<>();
+        for (int[] edge : shape.edges) addEdge(level.edges, edgeSet, edge[0], edge[1]);
+
+        level.solution = findSolutionPath(level);
+        if (level.solution == null) {
+            throw new IllegalStateException("Shape \"" + shape.name + "\" (level " + id + ") is not solvable");
+        }
+        return level;
+    }
+
+    /** Finds one full path visiting all dots without edge reuse, or null. */
+    static List<Integer> findSolutionPath(Level level) {
+        int n = level.dotCount();
+        List<List<int[]>> adj = buildAdjacency(level, n);
+        long full = (1L << n) - 1;
+        for (int start = 0; start < n; start++) {
+            List<Integer> path = new ArrayList<>();
+            path.add(start);
+            long[] budget = {400_000};
+            if (pathDfs(adj, start, 0L, 1L << start, full, budget, path)) return path;
+        }
+        return null;
+    }
+
+    static boolean pathDfs(List<List<int[]>> adj, int current, long used, long visited, long full,
+                           long[] budget, List<Integer> path) {
+        if (visited == full) return true;
+        if (budget[0]-- <= 0) return false;
+        for (int[] option : adj.get(current)) {
+            int edge = option[0], next = option[1];
+            if ((used & (1L << edge)) != 0) continue;
+            path.add(next);
+            if (pathDfs(adj, next, used | (1L << edge), visited | (1L << next), full, budget, path)) {
+                return true;
+            }
+            path.remove(path.size() - 1);
+        }
+        return false;
+    }
+
     // ── Level generation ─────────────────────────────────────────
 
     static class Level {
@@ -106,18 +213,28 @@ public class LevelGen {
         List<int[]> edges = new ArrayList<>(); // pairs of dot ids
         List<Integer> solution;
         int solvableStarts; // metric only, not serialized
+        String name; // shape levels only
+        List<int[]> dotsOverride; // shape levels: explicit {x,y} per dot id
+
+        /** Number of dots: full lattice for square levels, explicit list for shapes. */
+        int dotCount() {
+            return dotsOverride != null ? dotsOverride.size() : gridSize * gridSize;
+        }
 
         String toJson() {
             StringBuilder sb = new StringBuilder();
             sb.append("    {\"id\": ").append(id)
-              .append(", \"gridSize\": ").append(gridSize)
-              .append(", \"dots\": [");
-            int n = gridSize * gridSize;
+              .append(", \"gridSize\": ").append(gridSize);
+            if (name != null) sb.append(", \"name\": \"").append(name).append("\"");
+            sb.append(", \"dots\": [");
+            int n = dotCount();
             for (int d = 0; d < n; d++) {
                 if (d > 0) sb.append(", ");
+                int x = dotsOverride != null ? dotsOverride.get(d)[0] : d % gridSize;
+                int y = dotsOverride != null ? dotsOverride.get(d)[1] : d / gridSize;
                 sb.append("{\"id\": ").append(d)
-                  .append(", \"x\": ").append(d % gridSize)
-                  .append(", \"y\": ").append(d / gridSize).append("}");
+                  .append(", \"x\": ").append(x)
+                  .append(", \"y\": ").append(y).append("}");
             }
             sb.append("], \"edges\": [");
             for (int e = 0; e < edges.size(); e++) {
@@ -197,7 +314,7 @@ public class LevelGen {
      * once the count exceeds [cap] (the level will be rejected anyway).
      */
     static int countSolvableStarts(Level level, int cap) {
-        int n = level.gridSize * level.gridSize;
+        int n = level.dotCount();
         List<List<int[]>> adj = buildAdjacency(level, n);
         long full = (1L << n) - 1;
         int count = 0;
@@ -309,7 +426,7 @@ public class LevelGen {
      * least one starting dot.
      */
     static boolean verifySolvable(Level level) {
-        int n = level.gridSize * level.gridSize;
+        int n = level.dotCount();
         if (level.edges.size() > 63) return false; // bitmask capacity guard
         List<List<int[]>> adj = buildAdjacency(level, n);
         long full = (1L << n) - 1;
