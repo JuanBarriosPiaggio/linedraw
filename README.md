@@ -72,11 +72,11 @@ Create the app + 3 ad units at [apps.admob.com](https://apps.admob.com), then pa
 
 ### 3. Release checklist
 
-- Change `applicationId` in `app/build.gradle.kts` from `com.linedraw.game` to your own unique ID **before first upload** (it can never be changed after).
-- Create a signing key and configure a `release` signing config.
-- Build with `./gradlew bundleRelease` and upload the `.aab`.
+- Application ID is **`com.vexlo.linedraw`** (Vexlo) — permanent after the first Play upload.
+- Release signing reads `keystore/keystore.properties` + `keystore/vexlo-release.jks`. The `keystore/` folder is **gitignored — back it up somewhere safe**; builds fall back to unsigned if it's missing.
+- Build with `./gradlew bundleRelease` and upload `app/build/outputs/bundle/release/app-release.aab`.
 - Fill in the Play *Data safety* form: the AdMob SDK collects the Advertising ID.
-- Add a privacy policy URL (required because the app shows ads).
+- Privacy policy page lives in `docs/index.html` — enable GitHub Pages (Settings → Pages → deploy from `main`, `/docs` folder) and use the resulting URL in Play Console. Update the contact email in it first.
 
 ## Levels
 

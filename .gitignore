@@ -11,3 +11,6 @@ captures/
 *.aab
 *.keystore
 !debug.keystore
+
+# Release signing secrets — keep local + backed up, never commit
+keystore/
