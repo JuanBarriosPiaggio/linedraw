@@ -31,11 +31,8 @@ interface AdManager {
 }
 
 object AdConfig {
-    /**
-     * Google's PUBLIC TEST ad unit IDs — safe to keep during development.
-     * TODO: Replace with your real AdMob ad unit IDs before release (see README).
-     */
-    const val BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/6300978111"
-    const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712"
-    const val REWARDED_AD_UNIT_ID = "ca-app-pub-3940256099942544/5224354917"
+    /** Production AdMob unit IDs for Line Draw (Vexlo). Debug builds still use MockAdManager. */
+    const val BANNER_AD_UNIT_ID = "ca-app-pub-5881206053165150/2095368182"
+    const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-5881206053165150/5322618597"
+    const val REWARDED_AD_UNIT_ID = "ca-app-pub-5881206053165150/5651469810"
 }

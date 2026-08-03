@@ -46,12 +46,12 @@ Open in Android Studio (Hedgehog+) or build from the CLI:
 
 The app currently uses **Google's public test IDs everywhere**. Replace:
 
-| What | Where | Current (test) value |
+| What | Where | Value |
 |---|---|---|
-| App ID | `app/src/main/AndroidManifest.xml` (`com.google.android.gms.ads.APPLICATION_ID` meta-data) | `ca-app-pub-3940256099942544~3347511713` |
-| Banner unit | `ads/AdManager.kt` → `AdConfig.BANNER_AD_UNIT_ID` | `.../6300978111` |
-| Interstitial unit | `ads/AdManager.kt` → `AdConfig.INTERSTITIAL_AD_UNIT_ID` | `.../1033173712` |
-| Rewarded unit | `ads/AdManager.kt` → `AdConfig.REWARDED_AD_UNIT_ID` | `.../5224354917` |
+| App ID | `app/src/main/AndroidManifest.xml` | `ca-app-pub-5881206053165150~8691997908` |
+| Banner unit | `ads/AdManager.kt` → `AdConfig.BANNER_AD_UNIT_ID` | `ca-app-pub-5881206053165150/2095368182` |
+| Interstitial unit | `ads/AdManager.kt` → `AdConfig.INTERSTITIAL_AD_UNIT_ID` | `ca-app-pub-5881206053165150/5322618597` |
+| Rewarded unit | `ads/AdManager.kt` → `AdConfig.REWARDED_AD_UNIT_ID` | `ca-app-pub-5881206053165150/5651469810` |
 
 Create the app + 3 ad units at [apps.admob.com](https://apps.admob.com), then paste the real IDs in those two files. Ad placement rules (already implemented):
 

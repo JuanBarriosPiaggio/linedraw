@@ -15,14 +15,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.LineDraw.Splash">
 
-        <!--
-            AdMob application ID.
-            This is Google's PUBLIC TEST app ID. Before publishing, replace it with
-            your real AdMob app ID from https://apps.admob.com (see README).
-        -->
+        <!-- Vexlo / Line Draw AdMob application ID -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-5881206053165150~8691997908" />
 
         <activity
             android:name=".MainActivity"
