@@ -15,8 +15,8 @@ android {
         applicationId = "com.vexlo.linedraw"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -78,6 +78,10 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+        // Required for Google Play 16 KB page-size compatibility (AGP 8.5.1+).
+        jniLibs {
+            useLegacyPackaging = false
+        }
     }
 }
 
@@ -99,12 +103,12 @@ dependencies {
     implementation("androidx.compose.animation:animation")
 
     implementation("androidx.navigation:navigation-compose:2.7.7")
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
     // Monetization
-    implementation("com.google.android.gms:play-services-ads:23.2.0")
-    implementation("com.android.billingclient:billing-ktx:7.0.0")
+    implementation("com.google.android.gms:play-services-ads:23.6.0")
+    implementation("com.android.billingclient:billing-ktx:7.1.1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
